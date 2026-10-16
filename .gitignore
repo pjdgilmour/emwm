@@ -1,0 +1,7 @@
+*.o
+/src/.depend
+/src/Makefile
+/src/emwm
+/.agents/
+/.codex/
+/.aws/

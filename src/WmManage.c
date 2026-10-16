@@ -43,6 +43,7 @@
 #include "WmImage.h"
 #include "WmKeyFocus.h"
 #include "WmManage.h"
+#include "WmArgb.h"
 #include "WmMenu.h"
 #include "WmProperty.h"
 #include "WmProtocol.h"
@@ -1250,6 +1251,8 @@ void FreeClientFrame (ClientData *pCD)
 	XtFree ((char *)pCD->pResizeGadgets);
 	pCD->pResizeGadgets = NULL;
     }
+
+    FreeArgbFrame(pCD);
 
     /* destroy frame window & all children */
     XDestroyWindow (DISPLAY, pCD->clientFrameWin);

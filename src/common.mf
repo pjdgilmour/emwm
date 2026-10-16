@@ -1,12 +1,12 @@
 # Common Makefile part, included in every platform scpecific Makefile
 
-SYSLIBS =  -lm -lXm -lXt -lXext -lXrandr -lXinerama -lX11
+SYSLIBS =  -lm -lXrender -lXm -lXt -lXext -lXrandr -lXinerama -lX11
 
 DEFINES = -DUNMAP_ON_RESTART -DNO_OL_COMPAT -DRCDIR='"$(RCDIR)"'
 
 CFLAGS += $(DEFINES)
 
-mwm_objs = \
+mwm_objs = WmArgb.o \
 	WmCDInfo.o WmCDecor.o WmCEvent.o WmCPlace.o WmColormap.o WmError.o \
 	WmEvent.o WmFeedback.o WmFunction.o	WmGraphics.o WmIDecor.o WmIPlace.o \
 	WmIconBox.o WmKeyFocus.o WmMain.o WmManage.o WmProperty.o WmResCvt.o\

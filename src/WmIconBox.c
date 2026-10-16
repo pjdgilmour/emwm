@@ -1180,7 +1180,8 @@ void SetGeometry (WmWorkspaceData *pWS, ClientData *pCD, IconBoxData *pIBD)
         tmpMin = boxdim +
                  ((decoration & MWM_DECOR_MENU) ? boxdim : 0) +
                  ((decoration & MWM_DECOR_MINIMIZE) ? boxdim : 0) +
-                 ((decoration & MWM_DECOR_MAXIMIZE) ? boxdim : 0) -
+                 ((decoration & MWM_DECOR_MAXIMIZE) ? boxdim : 0) +
+                 (HAS_CLOSE_BUTTON(pCD) ? boxdim : 0) -
                  2*(pCD->matteWidth);
     }
     else {

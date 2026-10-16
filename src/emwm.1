@@ -36,6 +36,12 @@ The following sections describe the basic default behaviors of windows,
 icons, the icon box, input focus, and window stacking\&. The appearance and
 behavior of the window manager can be altered by changing the configuration
 of specific resources\&. Resources are defined under the heading "X DEFAULTS\&."
+.PP
+Application windows using an ARGB visual retain their per-pixel transparency
+when an external X11 compositor, such as picom, is running\&. Title bars,
+buttons, borders and mattes retain their opaque Motif appearance\&.
+Background opacity is configured in the application\&. The window manager
+does not start a compositor automatically\&.
 .SS "Screens"
 .PP
 By default, \fBemwm\fP manages only the single screen specified
@@ -58,7 +64,7 @@ frame is moved during the drag to indicate the new location\&. When the button
 is released, the window is moved to the new location\&.
 .IP "\fITitle\ Bar\fP" 10
 The title bar includes the title area, the minimize button, the maximize
-button, and the window menu button\&. In shaped windows, such as round windows,
+button, the close button, and the window menu button\&. In shaped windows,
 the title bar floats above the window\&.
 .IP "\fIMinimize\ Button\fP" 10
 To turn the window into an icon, click button 1 on the minimize button
@@ -67,6 +73,17 @@ To turn the window into an icon, click button 1 on the minimize button
 To make the window fill the screen (or enlarge to the largest size allowed
 by the configuration files), click button 1 on the maximize button (the frame
 box with a \fBlarge\fP square in it)\&.
+.IP "\fIClose\ Button\fP" 10
+To request that a window close, click button 1 on the X at the right end
+of the title bar\&. The request is sent when the button is released over
+the X; releasing elsewhere cancels it\&. The button uses the same beveled
+appearance as the other title bar controls\&.
+The close button is present only when the title bar is present and closing
+is allowed by the client's Motif hints and the \fIclientFunctions\fP
+resource\&. It does not introduce a new Motif decoration hint\&.
+The action is the same as \fBf.kill\fP: clients supporting WM_DELETE_WINDOW
+receive that protocol message\&. Otherwise, the existing WM_SAVE_YOURSELF
+handling or client disconnection is used\&.
 .IP "\fIWindow\ Menu\ Button\fP" 10
 The window menu button is the frame box with a horizontal bar in it\&.
 To pull down the window menu, press button 1\&. While pressing, drag the pointer

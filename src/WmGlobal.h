@@ -185,7 +185,7 @@ extern Pixel		FPselectcolor;
 
 
 /* number of rectangles to allocate */
-#define NUM_TITLE_GADGET_RECTS 4
+#define NUM_TITLE_GADGET_RECTS 5
 #define NUM_MATTE_TS_RECTS	(6)
 #define NUM_MATTE_BS_RECTS	(6)
 
@@ -440,6 +440,7 @@ typedef struct _ButtonSpec
 #define FRAME_MATTE		15
 #define FRAME_MISC		FRAME_MATTE
 #define FRAME_TITLEBAR		17
+#define FRAME_CLOSE		21  /* keep existing part/subcontext values */
 
 /* icon part contexts */
 #define ICON_PART_NONE		0
@@ -485,6 +486,7 @@ typedef struct _ButtonSpec
 #define F_SUBCONTEXT_W_TITLE		(1L << FRAME_TITLE)
 #define F_SUBCONTEXT_W_MINIMIZE		(1L << FRAME_MINIMIZE)
 #define F_SUBCONTEXT_W_MAXIMIZE		(1L << FRAME_MAXIMIZE)
+#define F_SUBCONTEXT_W_CLOSE		(1L << FRAME_CLOSE)
 #define F_SUBCONTEXT_W_RESIZE_NW	(1L << FRAME_RESIZE_NW)
 #define F_SUBCONTEXT_W_RESIZE_N		(1L << FRAME_RESIZE_N)
 #define F_SUBCONTEXT_W_RESIZE_NE	(1L << FRAME_RESIZE_NE)
@@ -513,7 +515,8 @@ typedef struct _ButtonSpec
 #define F_SUBCONTEXT_W_TITLEBAR		(F_SUBCONTEXT_W_SYSTEM |\
 					 F_SUBCONTEXT_W_TITLE |\
 					 F_SUBCONTEXT_W_MINIMIZE |\
-					 F_SUBCONTEXT_W_MAXIMIZE)
+					 F_SUBCONTEXT_W_MAXIMIZE |\
+					 F_SUBCONTEXT_W_CLOSE)
 
 #define F_SUBCONTEXT_W_FRAME		(F_SUBCONTEXT_W_BORDER |\
 					 F_SUBCONTEXT_W_TITLEBAR)
@@ -1511,6 +1514,7 @@ typedef struct _ClientData
     XPoint	clientOffset;			/* frame to client window */
     XmString	clientTitle;			/* WM_NAME field */
     XmString	ewmhClientTitle;		/* _NET_WM_NAME */
+    struct _ArgbFrame *argbFrame;        /* alpha-preserving frame resources */
     Window	clientFrameWin;			/* top-level, frame window */
     Window	clientStretchWin[STRETCH_COUNT];/* for resizing border */
     Window	clientTitleWin;			/* for title bar */
@@ -1639,6 +1643,11 @@ typedef struct _ClientData *PtrClientData;
 #define TITLE_DEPRESSED			(1L << 1)
 #define MINIMIZE_DEPRESSED		(1L << 2)
 #define MAXIMIZE_DEPRESSED		(1L << 3)
+#define CLOSE_DEPRESSED			(1L << 4)
+
+/* Closing has no separate decoration bit in the Motif hints protocol. */
+#define HAS_CLOSE_BUTTON(pcd) (((pcd)->decor & MWM_DECOR_TITLE) && \
+                              ((pcd)->clientFunctions & MWM_FUNC_CLOSE))
 
 /* iconFlags field values: */
 #define ICON_HINTS_POSITION		(1L << 0)

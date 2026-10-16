@@ -1265,10 +1265,11 @@ void CheckButtonPressBuiltin (XButtonEvent *buttonEvent, Context context, Contex
 	    wmGD.configSet = True;
 	}
 	else if ((buttonEvent->button == SELECT_BUTTON) &&
-            (subContext & (F_SUBCONTEXT_W_MINIMIZE|F_SUBCONTEXT_W_MAXIMIZE)))
+            (subContext & (F_SUBCONTEXT_W_MINIMIZE|F_SUBCONTEXT_W_MAXIMIZE|
+                           F_SUBCONTEXT_W_CLOSE)))
 	{
             /*
-	     * Minimize and maximize button components:
+	     * Minimize, maximize and close button components:
              * SELECT_BUTTON Press - start of a click.
              */
 
@@ -1750,6 +1751,18 @@ void CheckButtonReleaseBuiltin (XButtonEvent *buttonEvent, Context context, Cont
 	 */
 
 	if ((buttonEvent->button == SELECT_BUTTON) &&
+	    (subContext == F_SUBCONTEXT_W_CLOSE))
+	{
+	    /* A complete click on the same gadget closes the client. */
+	    if ((wmGD.clickData.clickContext == F_SUBCONTEXT_W_CLOSE) &&
+		HAS_CLOSE_BUTTON(pCD))
+	    {
+		wmGD.clickData.clickPending = False;
+		wmGD.clickData.doubleClickPending = False;
+		F_Kill (NULL, pCD, (XEvent *)buttonEvent);
+	    }
+	}
+	else if ((buttonEvent->button == SELECT_BUTTON) &&
 	    (subContext == F_SUBCONTEXT_W_MINIMIZE))
 	{
 	    /*

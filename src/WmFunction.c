@@ -2459,7 +2459,8 @@ Boolean F_Kill (String args, ClientData *pCD, XEvent *event)
 		 */
 
 		SendClientMsg (pCD->client, (long) wmGD.xa_WM_PROTOCOLS,
-		    (long) wmGD.xa_WM_DELETE_WINDOW, CurrentTime, NULL, 0);
+		    (long) wmGD.xa_WM_DELETE_WINDOW,
+                    GetFunctionTimestamp ((XButtonEvent *)event), NULL, 0);
 	    }
 	    /* TBD: HP does not want to send a client message for both
 	     * delete_window AND save_yourself.  The current OSF patch

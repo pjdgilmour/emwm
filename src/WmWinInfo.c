@@ -1763,7 +1763,8 @@ ProcessWmNormalHints (ClientData *pCD, Boolean firstTime, long manageFlags)
 	tmpMin = boxdim +
 	         ((decoration & MWM_DECOR_MENU) ? boxdim : 0) +
 	         ((decoration & MWM_DECOR_MINIMIZE) ? boxdim : 0) +
-	         ((decoration & MWM_DECOR_MAXIMIZE) ? boxdim : 0) -
+	         ((decoration & MWM_DECOR_MAXIMIZE) ? boxdim : 0) +
+                 (HAS_CLOSE_BUTTON(pCD) ? boxdim : 0) -
 		 2*(pCD->matteWidth);
     }
     else {
@@ -2203,6 +2204,7 @@ ProcessWmWindowTitle (ClientData *pCD, Boolean firstTime)
 			    ((decor & MWM_DECOR_MENU) ? boxdim : 0) +
 			    ((decor & MWM_DECOR_MINIMIZE) ? boxdim : 0) +
 			    ((decor & MWM_DECOR_MAXIMIZE) ? boxdim : 0) +
+                            (HAS_CLOSE_BUTTON(pCD) ? boxdim : 0) +
 			      WM_TOP_TITLE_SHADOW + WM_BOTTOM_TITLE_SHADOW +
 				WM_TOP_TITLE_PADDING + WM_BOTTOM_TITLE_PADDING;
 

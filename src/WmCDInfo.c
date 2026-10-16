@@ -676,7 +676,8 @@ Boolean GetFramePartInfo (ClientData *pcd, int part, int *pX, int *pY, unsigned 
 			    2*pcd->frameInfo.upperBorderWidth - 
 			    ((decor & MWM_DECOR_MENU) ? boxdim : 0) -
 			    ((decor & MWM_DECOR_MINIMIZE) ? boxdim : 0) -
-			    ((decor & MWM_DECOR_MAXIMIZE) ? boxdim : 0);
+			    ((decor & MWM_DECOR_MAXIMIZE) ? boxdim : 0) -
+			    (HAS_CLOSE_BUTTON(pcd) ? boxdim : 0);
 		    *pHeight = boxdim;
 		    rval = TRUE;
 		}
@@ -697,7 +698,8 @@ Boolean GetFramePartInfo (ClientData *pcd, int part, int *pX, int *pY, unsigned 
 		if (decor & MWM_DECOR_MINIMIZE) {
 		    *pX = pcd->frameInfo.width - 
 			    pcd->frameInfo.upperBorderWidth - boxdim -
-			    ((decor & MWM_DECOR_MAXIMIZE) ? boxdim : 0);
+			    ((decor & MWM_DECOR_MAXIMIZE) ? boxdim : 0) -
+			    (HAS_CLOSE_BUTTON(pcd) ? boxdim : 0);
 		    *pY = pcd->frameInfo.upperBorderWidth;
 		    *pWidth= boxdim;
 		    *pHeight = boxdim;
@@ -708,10 +710,21 @@ Boolean GetFramePartInfo (ClientData *pcd, int part, int *pX, int *pY, unsigned 
 	case FRAME_MAXIMIZE:
 		if (decor & MWM_DECOR_MAXIMIZE) {
 		    *pX = pcd->frameInfo.width - 
-			    pcd->frameInfo.upperBorderWidth - boxdim;
+			    pcd->frameInfo.upperBorderWidth - boxdim -
+			    (HAS_CLOSE_BUTTON(pcd) ? boxdim : 0);
 		    *pY = pcd->frameInfo.upperBorderWidth;
 		    *pWidth = boxdim;
 		    *pHeight = boxdim;
+		    rval = TRUE;
+		}
+		break;
+
+	case FRAME_CLOSE:
+		if (HAS_CLOSE_BUTTON(pcd)) {
+		    *pX = pcd->frameInfo.width -
+			    pcd->frameInfo.upperBorderWidth - boxdim;
+		    *pY = pcd->frameInfo.upperBorderWidth;
+		    *pWidth = *pHeight = boxdim;
 		    rval = TRUE;
 		}
 		break;
@@ -1193,6 +1206,7 @@ Boolean GetDepressInfo (ClientData *pcd, int part, int *pX, int *pY, unsigned in
 	case FRAME_TITLE:
 	case FRAME_MINIMIZE:
 	case FRAME_MAXIMIZE:
+	case FRAME_CLOSE:
 	    if ((rval = GetFramePartInfo (pcd, part, pX, pY, pWidth, pHeight)))
 	    {
 		/*
@@ -1226,14 +1240,16 @@ Boolean GetDepressInfo (ClientData *pcd, int part, int *pX, int *pY, unsigned in
 		    sBevel = (pcd->matteWidth > 0) ? insideBevel : 
 						      EXTERNAL_BEVEL(pcd);
 
-		    eBevel = (decoration & (MWM_DECOR_MINIMIZE | 
-						 MWM_DECOR_MAXIMIZE))?
+		    eBevel = ((decoration & (MWM_DECOR_MINIMIZE |
+						 MWM_DECOR_MAXIMIZE)) ||
+                                HAS_CLOSE_BUTTON(pcd)) ?
 				      JOIN_BEVEL(pcd) : EXTERNAL_BEVEL(pcd);
 
 		    wBevel = (decoration & MWM_DECOR_MENU) ?
 				      JOIN_BEVEL(pcd) : EXTERNAL_BEVEL(pcd);
 
-		    meBevel = (decoration & (MWM_DECOR_MAXIMIZE)) ?
+		    meBevel = ((decoration & MWM_DECOR_MAXIMIZE) ||
+			       HAS_CLOSE_BUTTON(pcd)) ?
 				      JOIN_BEVEL(pcd) : EXTERNAL_BEVEL(pcd);
 		}
 
@@ -1320,14 +1336,20 @@ Boolean GetDepressInfo (ClientData *pcd, int part, int *pX, int *pY, unsigned in
 			break;
 
 		    case FRAME_MAXIMIZE:
-			/* north and east sides */
+		    case FRAME_CLOSE:
+			/* north side */
 			if (exBevel > *pInvertWidth) 
 			{
 			    tmp = exBevel - *pInvertWidth;
 			    *pY += tmp;
 			    *pHeight -= tmp;
-			    *pWidth -= tmp;
 			}
+
+			/* Only the rightmost button has an external east edge. */
+			tmp = (part == FRAME_MAXIMIZE && HAS_CLOSE_BUTTON(pcd)) ?
+			      JOIN_BEVEL(pcd) : exBevel;
+			if (tmp > *pInvertWidth)
+			    *pWidth -= tmp - *pInvertWidth;
 
 			/* west side */
 			if (eBevel > *pInvertWidth) 

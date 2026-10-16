@@ -12,7 +12,15 @@ all:
 		fi \
 	fi
 
-.PHONY: clean install distclean
+.PHONY: clean install distclean test test-argb
+
+test: all
+	./tests/run-x11.sh
+	FRAME_STYLE=slab DECOUPLED_TITLE=1 ./tests/run-x11.sh
+
+test-argb: all
+	ARGB_CLIENTS=1 ./tests/run-x11.sh
+	ARGB_CLIENTS=1 FRAME_STYLE=slab DECOUPLED_TITLE=1 MATTE_WIDTH=4 XFT_TITLE=1 ./tests/run-x11.sh
 
 install:
 	$(MAKE) -C src $(MAKEFLAGS) install

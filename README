@@ -9,6 +9,7 @@ Libraries and Headers required for building:
 libX11 
 libXt
 libXext
+libXrender
 libXrandr
 libXinerama
 libXm (open-motif/motif)
@@ -42,3 +43,49 @@ IMPORTANT NOTE ON EXISTING RC FILES
 Any existing EMWM 1.3 (or earlier) configuration files will interfere with the
 workspace functionality, since they don't have any related bindings (window and
 root menu) defined. The distribution archive includes an updated template file.
+
+TRANSPARENCY
+============
+
+ARGB application windows retain their per-pixel alpha through the window
+frame. An external X11 compositor, such as picom, is required to display
+transparency. Configure background opacity in the terminal/application;
+the Motif title bar, controls, borders and matte remain opaque.
+
+EMWM does not start a compositor automatically. No compositor-specific
+opacity rule is required for application-provided ARGB transparency.
+
+REGRESSION TESTS
+================
+
+Run 'make test' after installing the build prerequisites plus Xvfb and the
+XTest and XComposite development libraries (libxtst-dev and libxcomposite-dev
+on Debian). The tests start a private X server; they do not run against or
+replace the desktop window manager.
+
+The suite exercises close-button clicks and cancellation, WM_DELETE_WINDOW
+and its timestamp, the fallback for clients without that protocol, Motif
+function/decorations restrictions and changes, narrow-window sizing, and
+minimize/maximize/restore. It runs with recessed frames and with slab frames
+using a separate title appearance.
+
+XVFB may specify an alternate Xvfb executable. Compiler/linker flags for the
+test client can be supplied via CC, CPPFLAGS, CFLAGS and LDFLAGS. To run one
+configuration directly, use tests/run-x11.sh; FRAME_STYLE=slab and
+DECOUPLED_TITLE=1 select the alternate appearance.
+
+Run 'make test-argb' with picom installed to also check 0%, 50% and 100%
+alpha, opaque decorations, actual composited pixels, title repainting and
+fullscreen transitions. This runs the button tests with ARGB clients too,
+including a slab-frame configuration with a matte and Xft title fonts.
+PICOM may specify an alternate compositor executable. The runner supplies
+an isolated picom configuration using its XRender backend.
+
+ABOUT THIS FORK
+===============
+This fork is maintained at https://github.com/pjdgilmour/emwm .
+Upstream: https://github.com/alx210/emwm (alx@fastestcode.org), based on Motif.
+Local changes add a classic Motif close button and preserve ARGB transparency
+with an external compositor. Original copyright and license notices remain
+applicable; see COPYING and individual source headers.
+Debian integration: https://github.com/pjdgilmour/emwm-desktop .

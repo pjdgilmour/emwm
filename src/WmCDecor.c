@@ -30,6 +30,7 @@
 #include "WmXSMP.h"
 
 
+#include <stdlib.h>
 #include <X11/cursorfont.h>
 #include <Xm/Xm.h>
 
@@ -44,13 +45,17 @@
  */
 #include "WmCDecor.h"
 #include "WmCDInfo.h"
+#include "WmArgb.h"
 #include "WmError.h"
 #include "WmGraphics.h"
 #include "WmIconBox.h"
 #include "WmMenu.h"
 #include "WmWinInfo.h"
+#include "WmWinConf.h"
 #include "WmXinerama.h"
 
+static void BevelCloseButton(RList *prTop, RList *prBot, int x, int y,
+                             unsigned int height);
 static Boolean ConstructFrame(ClientData *pcd);
 static void GenerateFrameDisplayLists(ClientData *pcd);
 static void CreateStretcherWindows(ClientData *pcd);
@@ -196,13 +201,15 @@ Boolean FrameWindow (ClientData *pcd)
 void FrameExposureProc (ClientData *pcd)
 {
     GC topGC, botGC;
-    Window win = pcd->clientFrameWin;
+    Drawable win = ClientDecorDrawable(pcd, False);
 
     if(pcd->fullScreen) {
-		XClearWindow(DISPLAY,win);
+		XClearWindow(DISPLAY, pcd->clientFrameWin);
 		return;
     }
     
+    PaintArgbBackground(pcd, False, NULL);
+
     /* use "active" GCs if we have keyboard focus */
 
     if (pcd == wmGD.keyboardFocus) {
@@ -263,6 +270,7 @@ void FrameExposureProc (ClientData *pcd)
 
     /* draw the title bar text */
     DrawWindowTitle(pcd, False);
+    PresentArgbDecoration(pcd, False);
 }
 
 
@@ -295,13 +303,16 @@ void FrameExposureProc (ClientData *pcd)
 
 void BaseWinExposureProc (ClientData *pcd)
 {
+    Drawable drawable = ClientDecorDrawable(pcd, True);
+    PaintArgbBackground(pcd, True, NULL);
+
     /* bevel the matte (if there is one) */
 
     if (pcd->matteWidth > 0) {
 
 	if (pcd->pclientMatteTopShadows) {
 	    XFillRectangles (DISPLAY,
-			     pcd->clientBaseWin,
+			     drawable,
 			     pcd->clientMatteTopShadowGC,
 			     pcd->pclientMatteTopShadows->prect,
 			     pcd->pclientMatteTopShadows->used);
@@ -309,12 +320,13 @@ void BaseWinExposureProc (ClientData *pcd)
 
 	if (pcd->pclientMatteBottomShadows) {
 	    XFillRectangles (DISPLAY,
-			     pcd->clientBaseWin,
+			     drawable,
 			     pcd->clientMatteBottomShadowGC,
 			     pcd->pclientMatteBottomShadows->prect,
 			     pcd->pclientMatteBottomShadows->used);
 	}
     }
+    PresentArgbDecoration(pcd, True);
 }
 
 /*
@@ -325,6 +337,34 @@ Boolean UpdateClientDecorations(ClientData *pcd)
 	SetClientOffset(pcd);
 
 	if(!ConstructFrame(pcd)) return False;
+
+	/* A newly enabled close button must also fit on an existing frame. */
+	if (HAS_CLOSE_BUTTON(pcd)) {
+	    unsigned int boxes = 2 + !!(pcd->decor & MWM_DECOR_MENU) +
+	                         !!(pcd->decor & MWM_DECOR_MINIMIZE) +
+	                         !!(pcd->decor & MWM_DECOR_MAXIMIZE);
+	    unsigned int minimum = boxes * TitleBarHeight(pcd);
+	    minimum = minimum > 2 * pcd->matteWidth ?
+	              minimum - 2 * pcd->matteWidth : 0;
+	    if (pcd->minWidth < minimum) {
+	        unsigned int remainder = (minimum - pcd->baseWidth) % pcd->widthInc;
+	        pcd->minWidth = minimum + (remainder ? pcd->widthInc - remainder : 0);
+	        if (pcd->maxWidth < pcd->minWidth)
+	            pcd->maxWidth = pcd->minWidth;
+	    }
+	    if (pcd->clientWidth < pcd->minWidth) {
+	        if (pcd->maxConfig) {
+	            /* Keep the maximized state; fix the future restored size. */
+	            FixWindowSize(pcd, (unsigned int *)&pcd->clientWidth,
+	                          (unsigned int *)&pcd->clientHeight,
+	                          pcd->widthInc, pcd->heightInc);
+	        }
+	        else {
+	            ProcessNewConfiguration(pcd, pcd->clientX, pcd->clientY,
+	                                    pcd->minWidth, pcd->clientHeight, True);
+	        }
+	    }
+	}
 
 	RegenerateClientFrame(pcd);
 
@@ -377,6 +417,7 @@ static Boolean ConstructFrame (ClientData *pcd)
 
     /* create frame window  */
 	if(!pcd->clientFrameWin) {
+        InitArgbFrame(pcd);
     	attr_mask =  CWEventMask;
     	window_attribs.event_mask = (ButtonPressMask | ButtonReleaseMask |
 					 SELECT_BUTTON_MOTION_MASK | 
@@ -420,6 +461,14 @@ static Boolean ConstructFrame (ClientData *pcd)
 		window_attribs.save_under = True;
     	}
 
+        if (pcd->argbFrame) {
+            attr_mask &= ~CWBackPixmap;
+            attr_mask |= CWBackPixel | CWBorderPixel | CWColormap;
+            window_attribs.background_pixel = 0;
+            window_attribs.border_pixel = 0;
+            window_attribs.colormap = pcd->argbFrame->colormap;
+        }
+
 	    pcd->clientFrameWin = XCreateWindow(DISPLAY, 
 			RootWindow (DISPLAY,
 		    SCREEN_FOR_CLIENT(pcd)),
@@ -427,7 +476,8 @@ static Boolean ConstructFrame (ClientData *pcd)
 			frmY, 
 			pcd->frameInfo.width, 
 			pcd->frameInfo.height, 0, 
-			CopyFromParent,InputOutput,CopyFromParent,
+			pcd->argbFrame ? pcd->argbFrame->depth : CopyFromParent,
+            InputOutput, pcd->argbFrame ? pcd->argbFrame->visual : CopyFromParent,
 			attr_mask, &window_attribs);
 	} else {
 		XMoveResizeWindow(DISPLAY, pcd->clientFrameWin,
@@ -492,6 +542,12 @@ static Boolean ConstructFrame (ClientData *pcd)
 	    	wclass = InputOnly;
 		}
 
+        if (pcd->argbFrame && wclass == InputOutput) {
+            attr_mask |= CWColormap | CWBorderPixel;
+            window_attribs.colormap = DefaultColormap(DISPLAY, SCREEN_FOR_CLIENT(pcd));
+            window_attribs.border_pixel = 0;
+        }
+
 		pcd->clientTitleWin = XCreateWindow(DISPLAY, pcd->clientFrameWin,
 					(int) pcd->frameInfo.upperBorderWidth, 
 					(int) pcd->frameInfo.upperBorderWidth, 
@@ -499,7 +555,10 @@ static Boolean ConstructFrame (ClientData *pcd)
 				    	2*pcd->frameInfo.upperBorderWidth, 
 					pcd->frameInfo.titleBarHeight, 
 					0, 
-					CopyFromParent,wclass,CopyFromParent,
+					(pcd->argbFrame && wclass == InputOutput) ?
+                        DefaultDepth(DISPLAY, SCREEN_FOR_CLIENT(pcd)) : CopyFromParent,
+                    wclass, (pcd->argbFrame && wclass == InputOutput) ?
+                        DefaultVisual(DISPLAY, SCREEN_FOR_CLIENT(pcd)) : CopyFromParent,
 					attr_mask, &window_attribs);
     } else if(!(decoration & MWM_DECOR_TITLE) && pcd->clientTitleWin) {
 		XDestroyWindow(DISPLAY, pcd->clientTitleWin);
@@ -532,6 +591,7 @@ static Boolean ConstructFrame (ClientData *pcd)
     	}
 
     	attr_mask = CWBackPixel | CWEventMask;
+        if (pcd->argbFrame) window_attribs.background_pixel = 0;
 
     	pcd->clientBaseWin = XCreateWindow(DISPLAY, pcd->clientFrameWin,
 			BaseWindowX (pcd),
@@ -830,13 +890,15 @@ static void GenerateFrameDisplayLists (ClientData *pcd)
 	{
 	    sTitleBevel = (matte_width > 0) ? insideBevel : EXTERNAL_BEVEL(pcd);
         }
-	eTitleBevel = (decoration & (MWM_DECOR_MINIMIZE | MWM_DECOR_MAXIMIZE))?
+	eTitleBevel = ((decoration & (MWM_DECOR_MINIMIZE | MWM_DECOR_MAXIMIZE)) ||
+                       HAS_CLOSE_BUTTON(pcd)) ?
 			  JOIN_BEVEL(pcd) : EXTERNAL_BEVEL(pcd);
 	wTitleBevel = (decoration & MWM_DECOR_MENU) ?
 			  JOIN_BEVEL(pcd) : EXTERNAL_BEVEL(pcd);
 
 	/* beveling east of minimize */
-	meTitleBevel = (decoration & (MWM_DECOR_MAXIMIZE)) ?
+	meTitleBevel = ((decoration & MWM_DECOR_MAXIMIZE) ||
+                        HAS_CLOSE_BUTTON(pcd)) ?
 			  JOIN_BEVEL(pcd) : EXTERNAL_BEVEL(pcd);
     }
 
@@ -943,14 +1005,16 @@ static void GenerateFrameDisplayLists (ClientData *pcd)
 			    &inWidth);
 	    BevelDepressedRectangle (prlTop, prlBot, 
 			    x-xAdj, y-yAdj, width, height,
-			    nTitleBevel, nTitleBevel, 
+			    nTitleBevel,
+                            HAS_CLOSE_BUTTON(pcd) ? JOIN_BEVEL(pcd) : nTitleBevel,
 			    sTitleBevel, eTitleBevel, inWidth);
 	}
 	else {
 	    /* show normal maximize gadget */
 	    BevelRectangle (prlTop, prlBot, 
 			    x-xAdj, y-yAdj, width, height,
-			    nTitleBevel, nTitleBevel, 
+			    nTitleBevel,
+                            HAS_CLOSE_BUTTON(pcd) ? JOIN_BEVEL(pcd) : nTitleBevel,
 			    sTitleBevel, eTitleBevel);
 	}
 
@@ -966,6 +1030,25 @@ static void GenerateFrameDisplayLists (ClientData *pcd)
 				x-xAdj, y-yAdj, height);
 	}
 	
+    }
+
+    if (HAS_CLOSE_BUTTON(pcd)) {
+	GetFramePartInfo (pcd, FRAME_CLOSE, &x, &y, &width, &height);
+	if (pcd->decorFlags & CLOSE_DEPRESSED) {
+	    GetDepressInfo (pcd, FRAME_CLOSE, &jX, &jY, &jW, &jH,
+			    &inWidth);
+	    BevelDepressedRectangle (prlTop, prlBot,
+			    x-xAdj, y-yAdj, width, height,
+			    nTitleBevel, nTitleBevel,
+			    sTitleBevel, JOIN_BEVEL(pcd), inWidth);
+	}
+	else {
+	    BevelRectangle (prlTop, prlBot,
+			    x-xAdj, y-yAdj, width, height,
+			    nTitleBevel, nTitleBevel,
+			    sTitleBevel, JOIN_BEVEL(pcd));
+	}
+	BevelCloseButton (prlTop, prlBot, x-xAdj, y-yAdj, height);
     }
 
     /* draw the client matte (this is in the base window!!!) */
@@ -1229,12 +1312,15 @@ void DrawWindowTitle (ClientData *pcd, Boolean eraseFirst)
 
 	/* get the area that the text must fit in */
 	GetTextBox (pcd, &textBox);
-	win = pcd->clientFrameWin;
+	win = ClientDecorDrawable(pcd, False);
 	renderTable = CLIENT_APPEARANCE(pcd).renderTable;
     }
 
     if (eraseFirst)
     {
+        if (pcd->argbFrame && !DECOUPLE_TITLE_APPEARANCE(pcd))
+            PaintArgbBackground(pcd, False, &textBox);
+        else
 	XClearArea (DISPLAY, win, textBox.x, textBox.y, 
 		(unsigned int) textBox.width, (unsigned int) textBox.height, 
 		FALSE);
@@ -1250,6 +1336,8 @@ void DrawWindowTitle (ClientData *pcd, Boolean eraseFirst)
 		pcd->ewmhClientTitle ? pcd->ewmhClientTitle : pcd->clientTitle,
 		clientGC, textBox.x, textBox.y, textBox.width, &textBox,
 		pcd->pSD->titleLeft ? False : True);
+
+    if (eraseFirst) PresentArgbDecoration(pcd, False);
 
 } /* END OF FUNCTION DrawWindowTitle */
 
@@ -1392,6 +1480,10 @@ void CountFrameRectangles (WmScreenData *pSD)
 			  (Bevels[i].bottom.internal * MAX_INTERNAL_BEVEL) +
 			  (Bevels[i].bottom.join * pSD->joinBevel));
     }
+
+    /* Close button border; the scalable X extends these lists as needed. */
+    pSD->Num_Title_Ts_Elements += 4 * pSD->joinBevel;
+    pSD->Num_Title_Bs_Elements += 3 * pSD->joinBevel + MAX_INTERNAL_BEVEL;
 
     pSD->Num_Resize_Ts_Elements = pSD->Num_Resize_Bs_Elements = 0;
 
@@ -1721,6 +1813,17 @@ static void ComputeGadgetRectangles (ClientData *pcd)
 	    GetFramePartInfo (pcd, FRAME_MAXIMIZE, 
 	                      &fpX, &fpY, &fpWidth, &fpHeight);
 	    /* copy in and convert to shorts */
+	    pgr[igr].rect.x = fpX;
+	    pgr[igr].rect.y = fpY;
+	    pgr[igr].rect.width = fpWidth;
+	    pgr[igr].rect.height = fpHeight;
+	    igr += 1;
+	}
+
+	if (HAS_CLOSE_BUTTON(pcd)) {
+	    pgr[igr].id = FRAME_CLOSE;
+	    GetFramePartInfo (pcd, FRAME_CLOSE,
+			      &fpX, &fpY, &fpWidth, &fpHeight);
 	    pgr[igr].rect.x = fpX;
 	    pgr[igr].rect.y = fpY;
 	    pgr[igr].rect.width = fpWidth;
@@ -2117,6 +2220,7 @@ ShowActiveClientFrame (ClientData *pcd)
     }
 
 
+    if (!pcd->argbFrame)
     XChangeWindowAttributes (DISPLAY, pcd->clientFrameWin, attr_mask, 
 			     &window_attribs);
 
@@ -2221,6 +2325,7 @@ ShowInactiveClientFrame (ClientData *pcd)
 
 
     /* change window attribs so clear does the right thing */
+    if (!pcd->argbFrame)
     XChangeWindowAttributes (DISPLAY, pcd->clientFrameWin, attr_mask, 
 			     &window_attribs);
 
@@ -2578,6 +2683,55 @@ void BevelMaximizeButton (RList *prTop, RList *prBot, int x, int y,
 		    1, 1, 1, 1);
 } /* END OF FUNCTION  BevelMaximizeButton   */
 
+/* A small beveled X, using exactly the same shadow colors as the other icons. */
+static Boolean CloseButtonPixel(int x, int y, int size)
+{
+    return x >= 0 && y >= 0 && x < size && y < size &&
+           (abs(x - y) <= 1 || abs(x + y - size + 1) <= 1);
+}
+
+static void BevelCloseButton(RList *prTop, RList *prBot, int x, int y,
+                             unsigned int height)
+{
+    int row, col, size, offset;
+    unsigned int count;
+
+    if (height < 7) return;
+    offset = height < 12 ? 2 : (height < 16 ? 3 : 4);
+    size = height - 2 * offset;
+    x += offset;
+    y += offset;
+
+    /* Each row of the two diagonals needs at most six pixels per list. */
+    count = 6 * size;
+    if ((prTop->allocated - prTop->used < count &&
+         !ExtendRList(prTop, count)) ||
+        (prBot->allocated - prBot->used < count &&
+         !ExtendRList(prBot, count))) return;
+
+    for (row = 0; row < size; row++) {
+        for (col = 0; col < size; col++) {
+            RList *list;
+            XRectangle *rect;
+
+            if (!CloseButtonPixel(col, row, size)) continue;
+            if (!CloseButtonPixel(col - 1, row, size) ||
+                !CloseButtonPixel(col, row - 1, size))
+                list = prTop;
+            else if (!CloseButtonPixel(col + 1, row, size) ||
+                     !CloseButtonPixel(col, row + 1, size))
+                list = prBot;
+            else
+                continue;
+
+            rect = &list->prect[list->used++];
+            rect->x = x + col;
+            rect->y = y + row;
+            rect->width = rect->height = 1;
+        }
+    }
+}
+
 
 /*************************************<->*************************************
  *
@@ -2625,6 +2779,7 @@ Boolean DepressGadget (ClientData *pcd, int gadget, Boolean depressed)
 	case FRAME_SYSTEM:
 	case FRAME_MINIMIZE:
 	case FRAME_MAXIMIZE:
+	case FRAME_CLOSE:
 	    if (!GetDepressInfo (pcd, gadget, &x, &y, &width, 
 				 &height, &invertWidth))
 		return(FALSE);
@@ -2669,7 +2824,7 @@ Boolean DepressGadget (ClientData *pcd, int gadget, Boolean depressed)
 	}
 
 	/* draw into client frame window */
-	win = pcd->clientFrameWin;
+	win = ClientDecorDrawable(pcd, False);
     }
 
     /* 
@@ -2698,6 +2853,7 @@ Boolean DepressGadget (ClientData *pcd, int gadget, Boolean depressed)
 	XFillRectangles (DISPLAY, win, topGC, pTopRect->prect, pTopRect->used);
 	XFillRectangles (DISPLAY, win, botGC, pBotRect->prect, pBotRect->used);
     }
+    PresentArgbDecoration(pcd, False);
     return(TRUE);
 } /* END OF FUNCTION  DepressGadget   */
 
@@ -2742,6 +2898,10 @@ void PushGadgetIn (ClientData *pcd, int gadget)
 
 	case FRAME_MAXIMIZE:
 	    pcd->decorFlags |= MAXIMIZE_DEPRESSED;
+	    break;
+
+	case FRAME_CLOSE:
+	    pcd->decorFlags |= CLOSE_DEPRESSED;
 	    break;
 
 	default:
@@ -2794,6 +2954,10 @@ void PopGadgetOut (ClientData *pcd, int gadget)
 
 	case FRAME_MAXIMIZE:
 	    pcd->decorFlags &= ~MAXIMIZE_DEPRESSED;
+	    break;
+
+	case FRAME_CLOSE:
+	    pcd->decorFlags &= ~CLOSE_DEPRESSED;
 	    break;
 
 	default:
