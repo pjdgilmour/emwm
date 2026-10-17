@@ -55,6 +55,69 @@ the Motif title bar, controls, borders and matte remain opaque.
 EMWM does not start a compositor automatically. No compositor-specific
 opacity rule is required for application-provided ARGB transparency.
 
+KEYBOARD WINDOW TILING
+======================
+
+Super+Left/Right places the focused window in the left/right half of its
+monitor. Super+Up maximizes; Super+Down restores. After selecting a half,
+Up selects its upper quarter and Down selects its lower quarter. Down from
+a quarter restores the original floating geometry; Up from a quarter
+maximizes. Left/Right always select a half again. There is no timing limit
+and Super may be released between shortcuts.
+
+The same bindings cover KP_Left/Right/Up/Down (keypad 4/6/8/2) with Num Lock
+on or off. Super is the existing EMWM Mod4 modifier. The ordinary Motif
+move, resize, maximize, minimize and restore commands remain available.
+A committed move/resize starts a new floating geometry. Minimizing or using
+the traditional maximize/restore pair preserves the tiling restore point.
+
+New installations use these bindings from system.emwmrc (and the built-in
+fallback). Existing personal key sets are NOT changed automatically. Add
+these lines inside the Keys section selected by Emwm*keyBindings in your
+~/.emwmrc, then restart EMWM to use them:
+
+    Super<Key>Left     window f.tile left
+    Super<Key>Right    window f.tile right
+    Super<Key>Up       window f.tile up
+    Super<Key>Down     window f.tile down
+    Super<Key>KP_Left  window f.tile left
+    Super<Key>KP_Right window f.tile right
+    Super<Key>KP_Up    window f.tile up
+    Super<Key>KP_Down  window f.tile down
+
+Remove these lines from your selected key set to disable the shortcuts.
+The configurable f.tile function also accepts top-left, top-right,
+bottom-left, bottom-right and restore. For example, optional direct
+quadrants on the keypad (no additional defaults/conflicts imposed):
+
+    Super Ctrl<Key>KP_Home  window f.tile top-left
+    Super Ctrl<Key>KP_Prior window f.tile top-right
+    Super Ctrl<Key>KP_End   window f.tile bottom-left
+    Super Ctrl<Key>KP_Next  window f.tile bottom-right
+    Super Ctrl<Key>Down    window f.tile restore
+
+Regions include the Motif frame and matte. The monitor with the greatest
+frame intersection is used (nearest center if entirely off-screen), via
+RandR 1.5 logical monitors, falling back to existing Xinerama or the X
+screen. Visible panels' _NET_WM_STRUT_PARTIAL/_NET_WM_STRUT reservations are
+read on demand, including workspace and monitor ranges. Geometry changes
+are picked up on the next shortcut; already tiled windows are not continually
+rearranged. No polling, extra process or build dependency is introduced.
+
+Application minimum/maximum sizes, increments and aspect ratios are honored.
+A constrained window can leave a gap; an impossible region is a no-op.
+Dialogs, transients, special EWMH windows, fullscreen windows and windows
+that disallow movement/resizing are excluded. Restore obeys current size
+hints and clamps to the current work area if the monitor layout changed.
+The floating restore point is session-local, not persisted across WM restart.
+Only keyboard tiling is provided; dragging to screen edges is unchanged.
+
+Run 'make test-tiling' for XTest keyboard/geometry tests on private Xvfb
+servers, including two RandR logical monitors, changing panel reservations,
+Num/Caps Lock, all quarters, restore, hints, alternate frames and opt-out.
+This exercises logical monitors; physical hotplug/GPU combinations still
+need testing on actual multi-monitor systems.
+
 REGRESSION TESTS
 ================
 
@@ -86,6 +149,7 @@ ABOUT THIS FORK
 This fork is maintained at https://github.com/pjdgilmour/emwm .
 Upstream: https://github.com/alx210/emwm (alx@fastestcode.org), based on Motif.
 Local changes add a classic Motif close button and preserve ARGB transparency
-with an external compositor. Original copyright and license notices remain
+with an external compositor, plus configurable keyboard window tiling.
+Original copyright and license notices remain
 applicable; see COPYING and individual source headers.
 Debian integration: https://github.com/pjdgilmour/emwm-desktop .

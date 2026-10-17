@@ -1511,6 +1511,10 @@ typedef struct _ClientData
     int		clientY;			/* normal window Y loc */
     int		clientWidth;			/* normal window width */
     int		clientHeight;			/* normal window height */
+    /* Floating geometry retained across a sequence of f.tile operations. */
+    int         tileState;
+    Boolean     tileApplying;
+    int         tileX, tileY, tileWidth, tileHeight;
     XPoint	clientOffset;			/* frame to client window */
     XmString	clientTitle;			/* WM_NAME field */
     XmString	ewmhClientTitle;		/* _NET_WM_NAME */

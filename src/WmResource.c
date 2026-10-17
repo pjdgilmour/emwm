@@ -443,6 +443,14 @@ char builtinKeyBindingsName[] = "_MwmKeyBindings_";
 
 #define BUILTINKEYBINDINGS "_MwmKeyBindings_\n\
 {\n\
+	Super<Key>Left window f.tile left\n\
+	Super<Key>Right window f.tile right\n\
+	Super<Key>Up window f.tile up\n\
+	Super<Key>Down window f.tile down\n\
+	Super<Key>KP_Left window f.tile left\n\
+	Super<Key>KP_Right window f.tile right\n\
+	Super<Key>KP_Up window f.tile up\n\
+	Super<Key>KP_Down window f.tile down\n\
 	Shift<Key>Escape	window|icon		f.post_wmenu\n\
 	Alt<Key>space		window|icon		f.post_wmenu\n\
 	Alt<Key>Tab		root|icon|window	f.next_key\n\

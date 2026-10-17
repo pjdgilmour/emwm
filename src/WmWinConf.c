@@ -2087,6 +2087,11 @@ void ProcessNewConfiguration (ClientData *pCD, int x, int y, unsigned int width,
 	CheckIconBoxResize(pCD, changedValues, width, height);
     }
 
+    /* A real move/resize outside f.tile starts a new floating geometry.
+     * No-op ConfigureRequests must not discard the restore point. */
+    if (changedValues && !pCD->tileApplying)
+        pCD->tileState = 0;
+
 } /* END OF FUNCTION ProcessNewConfiguration */
 
 

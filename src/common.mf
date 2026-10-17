@@ -6,7 +6,7 @@ DEFINES = -DUNMAP_ON_RESTART -DNO_OL_COMPAT -DRCDIR='"$(RCDIR)"'
 
 CFLAGS += $(DEFINES)
 
-mwm_objs = WmArgb.o \
+mwm_objs = WmArgb.o WmTile.o \
 	WmCDInfo.o WmCDecor.o WmCEvent.o WmCPlace.o WmColormap.o WmError.o \
 	WmEvent.o WmFeedback.o WmFunction.o	WmGraphics.o WmIDecor.o WmIPlace.o \
 	WmIconBox.o WmKeyFocus.o WmMain.o WmManage.o WmProperty.o WmResCvt.o\

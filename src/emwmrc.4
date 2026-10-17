@@ -305,6 +305,35 @@ the specified location (the label is ignored)\&.
 This function causes the window manager to restart with the default
 behavior (if a custom behavior is configured) or a custom behavior (if a
 default behavior is configured)\&. By default this is bound to \fIShift\ Ctrl\ Alt\ <Key>!\fP\&.
+.IP "\fBf.tile\fP \fIdirection\fP" 10
+Arrange a normal, resizable window within its current monitor's usable area.
+Directions are \fBleft\fP, \fBright\fP, \fBup\fP, \fBdown\fP,
+\fBtop-left\fP, \fBtop-right\fP, \fBbottom-left\fP,
+\fBbottom-right\fP and \fBrestore\fP.
+Left/right select a half. Up maximizes, except from a half where it selects
+that half's upper quarter. Down restores, except from a half where it
+selects that half's lower quarter. Down from a quarter restores the original
+floating geometry. The explicit restore direction always restores.
+.PP
+Default bindings are Super plus the ordinary or keypad arrows; Num Lock
+and Caps Lock do not change their meaning. Existing custom key binding
+sets must add these functions explicitly. Removing the bindings disables
+the shortcuts. For example, inside the selected Keys section:
+.nf
+    Super<Key>Left window f.tile left
+    Super<Key>KP_Left window f.tile left
+    Super Ctrl<Key>KP_Home window f.tile top-left
+    Super Ctrl<Key>Down window f.tile restore
+.fi
+.PP
+Motif decorations, size hints and visible EWMH panel struts are included in
+the calculation. RandR logical monitors are preferred, with Xinerama and
+screen geometry as fallbacks. Dialogs, transients, special window types,
+fullscreen and non-resizable/non-movable windows are excluded. If no legal
+size fits the region, nothing changes. Monitor/panel changes take effect
+on the next shortcut. A manual geometry change discards the saved restore
+point; minimizing does not. This function does not enable automatic tiling
+or change mouse-driven placement.
 .IP "\fBf\&.title\fP" 10
 This function inserts a title in the menu pane at the specified location\&.
 .IP "\fBf.workspace_presence\fP" 10
